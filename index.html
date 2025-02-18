@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Word - Intelligent Problem Solving Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --secondary-color: #ffffff;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #000;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-white min-h-screen">
+    <nav class="bg-black text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">AI Word</h1>
+            <div class="flex gap-4">
+                <button id="historyBtn" class="px-4 py-2 rounded hover:bg-gray-800 transition">
+                    <i class="bi bi-clock-history"></i> History
+                </button>
+                <button id="micBtn" class="px-4 py-2 rounded hover:bg-gray-800 transition">
+                    <i class="bi bi-mic"></i> Voice
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Input Section -->
+            <div class="mb-8">
+                <textarea id="promptInput" class="w-full p-4 border-2 border-black rounded-lg h-32 resize-none focus:outline-none focus:border-gray-700 transition" placeholder="Enter your AI-related question or problem here..."></textarea>
+                <div class="flex justify-end mt-4">
+                    <button id="submitBtn" class="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition flex items-center gap-2">
+                        <span>Get Solution</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Response Section -->
+            <div id="responseSection" class="hidden fade-in">
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-4">AI Solution</h3>
+                    <div id="responseContent" class="prose max-w-none">
+                        <!-- AI response will be inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Modal -->
+            <div id="historyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+                <div class="bg-white p-6 rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Query History</h2>
+                        <button class="text-2xl" onclick="toggleHistory()">&times;</button>
+                    </div>
+                    <div id="historyContent"></div>
+                </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="hidden fixed inset-0 bg-white bg-opacity-80 flex items-center justify-center">
+                <div class="loading-spinner w-12 h-12 rounded-full"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const APP_SLUG = 'ai-word-123456';
+        const USER_ID = 'default-user';  // In a real app, this would come from authentication
+
+        // Initialize elements
+        const promptInput = document.getElementById('promptInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const responseSection = document.getElementById('responseSection');
+        const responseContent = document.getElementById('responseContent');
+        const historyModal = document.getElementById('historyModal');
+        const historyContent = document.getElementById('historyContent');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const micBtn = document.getElementById('micBtn');
+
+        // Event Listeners
+        submitBtn.addEventListener('click', handleSubmit);
+        document.getElementById('historyBtn').addEventListener('click', toggleHistory);
+        micBtn.addEventListener('click', startVoiceRecognition);
+
+        async function handleSubmit() {
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
+
+            showLoading(true);
+
+            try {
+                // Make AI request
+                const aiResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/ai', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer k9zXNm63jmfA0ymr4TEeN3I4GVg1',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{
+                            role: 'user',
+                            content: [{ type: 'text', text: prompt }]
+                        }]
+                    })
+                });
+
+                const aiData = await aiResponse.json();
+
+                // Save to MongoDB
+                await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer k9zXNm63jmfA0ymr4TEeN3I4GVg1',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug: APP_SLUG,
+                        action: 'create',
+                        collection: 'queries',
+                        data: {
+                            userId: USER_ID,
+                            prompt,
+                            response: aiData.message,
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+
+                // Display response
+                responseContent.innerHTML = `<p>${aiData.message}</p>`;
+                responseSection.classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                responseContent.innerHTML = '<p class="text-red-500">An error occurred. Please try again.</p>';
+                responseSection.classList.remove('hidden');
+            }
+
+            showLoading(false);
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer k9zXNm63jmfA0ymr4TEeN3I4GVg1',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug: APP_SLUG,
+                        action: 'read',
+                        collection: 'queries',
+                        conditions: { userId: USER_ID }
+                    })
+                });
+
+                const data = await response.json();
+                const queries = data.result;
+
+                historyContent.innerHTML = queries.length ? queries.map(query => `
+                    <div class="border-b p-4">
+                        <p class="font-semibold">Q: ${query.prompt}</p>
+                        <p class="mt-2">A: ${query.response}</p>
+                        <p class="text-sm text-gray-500 mt-2">${new Date(query.timestamp).toLocaleString()}</p>
+                    </div>
+                `).join('') : '<p class="text-center p-4">No history yet</p>';
+
+            } catch (error) {
+                console.error('Error loading history:', error);
+                historyContent.innerHTML = '<p class="text-red-500 text-center p-4">Failed to load history</p>';
+            }
+        }
+
+        function toggleHistory() {
+            if (historyModal.style.display === 'flex') {
+                historyModal.style.display = 'none';
+            } else {
+                historyModal.style.display = 'flex';
+                loadHistory();
+            }
+        }
+
+        function showLoading(show) {
+            loadingSpinner.style.display = show ? 'flex' : 'none';
+            submitBtn.disabled = show;
+        }
+
+        function startVoiceRecognition() {
+            if ('webkitSpeechRecognition' in window) {
+                const recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+
+                recognition.onstart = () => {
+                    micBtn.innerHTML = '<i class="bi bi-mic-fill"></i> Listening...';
+                    micBtn.classList.add('bg-red-500');
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    promptInput.value = transcript;
+                };
+
+                recognition.onend = () => {
+                    micBtn.innerHTML = '<i class="bi bi-mic"></i> Voice';
+                    micBtn.classList.remove('bg-red-500');
+                };
+
+                recognition.start();
+            } else {
+                alert('Speech recognition is not supported in this browser.');
+            }
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
